@@ -27,4 +27,4 @@ def ingest_document(
 
     converter = PDFtoMarkdown()
     
-    markdown
+   markdown = converter.pdf2md() 
