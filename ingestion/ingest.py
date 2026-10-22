@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_openai import OpenAIEmbeddings
 from vectorstore.azure_ai_search import AzureAISearchVectorStore
-from pdf_to_markdown import PDFtoMarkdown
+from ingestion.pdf_to_markdown import PDFtoMarkdown
 
 
 def parse_company_year(pdf_file: Path) -> tuple[str, str]:
@@ -70,8 +70,8 @@ def ingest_document(
     )
 
 
-def ingest_directory(input_dir: str) -> None:
-    """Ingest every PDF in a directory."""
+def build_clients() -> tuple[OpenAIEmbeddings, AzureAISearchVectorStore]:
+    """Read settings from the environment and build the embeddings and vector store."""
 
     load_dotenv(override=True)
 
@@ -131,6 +131,14 @@ def ingest_directory(input_dir: str) -> None:
         api_key=search_api_key,
         index_name=index_name,
     )
+
+    return embeddings, vector_store
+
+
+def ingest_directory(input_dir: str) -> None:
+    """Ingest every PDF in a directory."""
+
+    embeddings, vector_store = build_clients()
 
     # 3. Find all PDFs
     directory = Path(input_dir)
