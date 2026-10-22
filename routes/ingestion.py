@@ -7,7 +7,6 @@ from ingestion.ingest import build_clients, ingest_document
 
 router = APIRouter()
 
-
 @router.post("/upload")
 def ingest(
     file: UploadFile = File(...),
