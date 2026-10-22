@@ -95,4 +95,4 @@ if __name__ == "__main__":
         company="Apple",
         year=2024,
         metrics=sample_metrics
-    )
+        )

@@ -141,6 +141,8 @@ Instructions:
   "Cash Flow from Operating Activities", "Total Assets",
   "Total Liabilities", "Top Risk Factors", "Top Growth Drivers"
 - "Top Risk Factors" and "Top Growth Drivers" must be JSON arrays of strings.
+- Each financial value must be a single string for fiscal year {year} only (for example "$97,690" or "97690").
+  Do NOT return objects or per-year breakdowns such as {{"2024": ..., "2023": ...}}.
 """
 
 

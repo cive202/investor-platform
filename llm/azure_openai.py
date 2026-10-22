@@ -19,7 +19,7 @@ def get_openai_client() -> AzureOpenAI:
     return AzureOpenAI(
         api_key=os.getenv("AZURE_OPENAI_CHAT_API_KEY"),
         api_version=os.getenv("AZURE_OPENAI_CHAT_API_VERSION"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_endpoint=os.getenv("AZURE_OPENAI_CHAT_ENDPOINT")
     )
 
 

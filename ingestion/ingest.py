@@ -1,11 +1,13 @@
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_openai import OpenAIEmbeddings
+import os 
+from pathlib import Path 
+from dotenv import load_dotenv 
+from langchain_experimental.text_splitter import SemanticChunker 
+from langchain_openai import AzureOpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from vectorstore.azure_ai_search import AzureAISearchVectorStore
 from ingestion.pdf_to_markdown import PDFtoMarkdown
+
+MAX_CHUNK_CHARS = 4000
 
 
 def parse_company_year(pdf_file: Path) -> tuple[str, str]:
@@ -57,6 +59,15 @@ def ingest_document(
 
     chunks = chunker.create_documents([markdown])
 
+    # Semantic chunks can be far larger than the embedding model's
+    # 8192-token limit, so cap their size. ~4000 chars stays well under
+    # the limit even for number-heavy financial tables.
+    size_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=MAX_CHUNK_CHARS,
+        chunk_overlap=0,
+    )
+    chunks = size_splitter.split_documents(chunks)
+
     vector_store.upload_chunks(
             chunks = chunks,
             embeddings = embeddings,
@@ -70,7 +81,7 @@ def ingest_document(
     )
 
 
-def build_clients() -> tuple[OpenAIEmbeddings, AzureAISearchVectorStore]:
+def build_clients() -> tuple[AzureOpenAIEmbeddings, AzureAISearchVectorStore]:
     """Read settings from the environment and build the embeddings and vector store."""
 
     load_dotenv(override=True)
@@ -118,9 +129,11 @@ def build_clients() -> tuple[OpenAIEmbeddings, AzureAISearchVectorStore]:
 
     # 1. Initialize Azure OpenAI embeddings
 
-    embeddings = OpenAIEmbeddings(
+    embeddings = AzureOpenAIEmbeddings(
         model=embedding_model_name,
-        base_url=embedding_endpoint,
+        azure_deployment=embedding_model_name,
+        azure_endpoint=embedding_endpoint,
+        api_version=os.getenv("OPENAI_API_VERSION"),
         api_key=embedding_api_key,
         check_embedding_ctx_length=False,
     )
