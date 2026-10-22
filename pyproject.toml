@@ -10,6 +10,8 @@ dependencies = [
     "langchain-experimental>=0.4.2",
     "langchain-openai>=1.7.2",
     "pathlib>=1.0.1",
+    "psycopg2>=2.9.13",
     "pymupdf4llm<2",
     "python-dotenv>=1.2.4",
+    "sqlalchemy>=2.1.5",
 ]
