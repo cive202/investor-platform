@@ -136,7 +136,11 @@ Instructions:
 - Financial values must match the report exactly.
 - Risk factors should be concise.
 - Growth drivers should be concise.
-- Return valid JSON only.
+- Return valid JSON only, using exactly these keys:
+  "Revenue", "Net Income", "Operating Income",
+  "Cash Flow from Operating Activities", "Total Assets",
+  "Total Liabilities", "Top Risk Factors", "Top Growth Drivers"
+- "Top Risk Factors" and "Top Growth Drivers" must be JSON arrays of strings.
 """
 
 
