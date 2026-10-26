@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: cive-investor
+
+specs:
+  replicas: 1
+
+  selector:
+    matchLables:
+      app: cive-investor
+
+  template:
+    metadata:
+      labels:
+        app: cive-investor
+
+    spec:
+      containers:
+      - name: cive-investor
+
+        image: 
