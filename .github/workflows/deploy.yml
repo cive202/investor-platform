@@ -56,8 +56,8 @@ jobs:
 
       - name: Restart deployment
         run: |
-          kubectl rollout restart deployment/investingAssistant
+          kubectl rollout restart deployment/investing-assistant
 
       - name: Verfiy deployment
         run: |
-          kubectl rollout status deployment/investingAssistant
+          kubectl rollout status deployment/investing-assistant
