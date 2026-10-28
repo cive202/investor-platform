@@ -20,4 +20,13 @@ specs:
       containers:
       - name: cive-investor
 
-        image: 
+        image: investingassistant.azurecr.io/investor-platform:v1
+
+        imagePullPolicy: Always
+
+        envFrom:
+        - secretRef:
+            name: investor-env
+
+        ports:
+        - containerPort: 8000
