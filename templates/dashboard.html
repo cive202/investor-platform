@@ -31,18 +31,17 @@
         </div>
     </header>
     <div class="kpi-values-list">
-        {% for row in metrics if row[field] %}
+        {% for company, rows in metrics | sort(attribute='company,year') | groupby('company') if rows | map(attribute=field) | select | list %}
+        {% set values = rows | map(attribute=field) | select | list %}
         <div class="kpi-value-row">
             <div class="kpi-company-label">
                 <span class="company-badge-name">
-                    <span class="company-logo-avatar" aria-hidden="true">{{ row.company[:2] | upper }}</span>
-                    <span>{{ row.company }} ({{ row.year }})</span>
+                    <span class="company-logo-avatar" aria-hidden="true">{{ company[:2] | upper }}</span>
+                    <span>{{ company }} ({{ rows[-1].year }})</span>
                 </span>
-                <span class="kpi-val-number">{{ row[field] }}</span>
+                <span class="kpi-val-number">{{ values[-1] }}</span>
             </div>
-            <div class="kpi-compare-bar-bg">
-                <div class="kpi-compare-bar-fill" data-value="{{ row[field] }}"></div>
-            </div>
+            <div class="kpi-trend-chart" data-company="{{ company }}" data-field="{{ field }}"></div>
         </div>
         {% else %}
         <p class="kpi-empty">No {{ title | lower }} reported yet.</p>
@@ -57,8 +56,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AI-powered KPI extraction and analyst chat for corporate financial reports.">
-    <meta name="theme-color" content="#0b0f19">
+    <meta name="theme-color" content="#0b0f19" id="themeColorMeta">
     <title>AI-Powered Investor Intelligence Platform</title>
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var theme = stored || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) { /* localStorage unavailable; CSS still falls back to the dark default */ }
+        })();
+    </script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -79,6 +87,12 @@
                 <span class="logo-text">Investor Intelligence</span>
                 <span class="logo-tagline">AI financial analyst</span>
             </div>
+            <button type="button" class="theme-toggle-btn" id="themeToggleBtn" role="switch" aria-checked="false"
+                    aria-label="Switch to light theme" title="Switch to light theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeToggleIcon">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>
+                </svg>
+            </button>
         </div>
 
         <!-- Ingestion upload -->
@@ -153,8 +167,8 @@
                     <div class="company-selector-wrapper">
                         <label for="companySelect">Inspect Company</label>
                         <select id="companySelect" class="company-select">
-                            {% for row in metrics %}
-                            <option value="{{ row.company }}">{{ row.company }}</option>
+                            {% for company, rows in metrics | sort(attribute='company,year') | groupby('company') %}
+                            <option value="{{ company }}">{{ company }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -237,8 +251,8 @@
                 <label class="chat-context-label" for="chatCompanySelect">Company</label>
                 <select id="chatCompanySelect" class="chat-context-select">
                     <option value="">All Companies</option>
-                    {% for row in metrics %}
-                    <option value="{{ row.company }}">{{ row.company }} ({{ row.year }})</option>
+                    {% for company, rows in metrics | sort(attribute='company,year') | groupby('company') %}
+                    <option value="{{ company }}">{{ company }} ({{ rows[-1].year }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -277,20 +291,33 @@
     </svg>
 </template>
 
+<!-- Markdown rendering for chat/qualitative LLM output: parsed by marked, then sanitized by DOMPurify -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"
+        integrity="sha512-xeUh+KxNyTufZOje++oQHstlMQ8/rpyzPuM+gjMFYK3z5ILJGE7l2NvYL+XfliKURMpBIKKp1XoPN/qswlSMFA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"
+        integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 <!-- Data bridge from the server to the page script -->
 <script>
     const companyData = {
-        {%- for row in metrics %}
-        {{ row.company | tojson }}: {
-            year: {{ row.year | tojson }},
-            revenue: {{ (row.revenue or '') | tojson }},
-            net_income: {{ (row.net_income or '') | tojson }},
-            operating_income: {{ (row.operating_income or '') | tojson }},
-            cash_flow: {{ (row.cash_flow or '') | tojson }},
-            total_assets: {{ (row.total_assets or '') | tojson }},
-            total_liabilities: {{ (row.total_liabilities or '') | tojson }},
-            growth_drivers: {{ (row.growth_drivers or '').splitlines() | map('trim') | reject('equalto', '') | list | tojson }},
-            risk_factors: {{ (row.risk_factors or '').splitlines() | map('trim') | reject('equalto', '') | list | tojson }}
+        {%- for company, rows in metrics | sort(attribute='company,year') | groupby('company') %}
+        {{ company | tojson }}: {
+            years: {{ rows | map(attribute='year') | list | tojson }},
+            series: {
+                revenue: {{ rows | map(attribute='revenue') | list | tojson }},
+                net_income: {{ rows | map(attribute='net_income') | list | tojson }},
+                operating_income: {{ rows | map(attribute='operating_income') | list | tojson }},
+                cash_flow: {{ rows | map(attribute='cash_flow') | list | tojson }},
+                total_assets: {{ rows | map(attribute='total_assets') | list | tojson }},
+                total_liabilities: {{ rows | map(attribute='total_liabilities') | list | tojson }}
+            },
+            latest: {
+                year: {{ rows[-1].year | tojson }},
+                growth_drivers: {{ (rows[-1].growth_drivers or '').splitlines() | map('trim') | reject('equalto', '') | list | tojson }},
+                risk_factors: {{ (rows[-1].risk_factors or '').splitlines() | map('trim') | reject('equalto', '') | list | tojson }}
+            }
         },
         {%- endfor %}
     };
@@ -320,18 +347,136 @@
         return negative ? -num : num;
     };
 
-    // ---------- KPI comparison bars ----------
-    function initKpiBars() {
-        document.querySelectorAll('.kpi-card').forEach(card => {
-            const fills = Array.from(card.querySelectorAll('.kpi-compare-bar-fill'));
-            const values = fills.map(fill => parseNumericValue(fill.dataset.value));
-            const maxVal = Math.max(0, ...values.map(Math.abs));
+    const parseNumericOrNull = (valStr) => (valStr ? parseNumericValue(valStr) : null);
 
-            fills.forEach((fill, i) => {
-                const num = values[i];
-                fill.style.width = `${maxVal > 0 ? (Math.abs(num) / maxVal) * 100 : 10}%`;
-                fill.classList.toggle('is-negative', num < 0);
-            });
+    // ---------- Safe markdown rendering ----------
+    // LLM output: rendered via marked.parse()/parseInline() + DOMPurify.sanitize()
+    // with an explicit tag allowlist (no `a`/`img`, so no href/src attack surface) —
+    // never assigned as raw innerHTML.
+    function renderSafeMarkdown(container, text, { inline = false } = {}) {
+        if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+            container.textContent = text;
+            return;
+        }
+        const rawHtml = inline ? marked.parseInline(text, { breaks: true }) : marked.parse(text, { breaks: true, gfm: true });
+        const allowedTags = inline
+            ? ['strong', 'em', 'code', 'br']
+            : ['p', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'br'];
+        const safeHtml = DOMPurify.sanitize(rawHtml, { ALLOWED_TAGS: allowedTags, ALLOWED_ATTR: [] });
+        container.classList.add('md-content');
+        container.innerHTML = safeHtml;
+    }
+
+    // ---------- KPI trend charts ----------
+    function renderTrendChart(container, years, rawValues, showTooltip, hideTooltip) {
+        const points = years
+            .map((year, i) => ({ year, raw: rawValues[i], value: parseNumericOrNull(rawValues[i]) }))
+            .filter(p => p.value !== null);
+
+        container.replaceChildren();
+        if (points.length === 0) return;
+
+        if (points.length === 1) {
+            container.classList.add('kpi-trend-chart--single');
+            const dot = document.createElement('div');
+            dot.className = 'kpi-trend-single-dot';
+            const label = document.createElement('span');
+            label.className = 'kpi-trend-single-label';
+            label.textContent = `Single year on record (${points[0].year})`;
+            container.append(dot, label);
+            return;
+        }
+
+        const width = 100;
+        const height = 32;
+        const values = points.map(p => p.value);
+        const min = Math.min(0, ...values);
+        const max = Math.max(0, ...values);
+        const range = (max - min) || 1;
+
+        const coords = points.map((p, i) => ({
+            ...p,
+            x: (i / (points.length - 1)) * width,
+            y: height - ((p.value - min) / range) * height,
+        }));
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.setAttribute('preserveAspectRatio', 'none');
+        svg.classList.add('kpi-trend-svg');
+
+        if (min < 0 && max > 0) {
+            const zeroY = height - ((0 - min) / range) * height;
+            const baseline = document.createElementNS(svg.namespaceURI, 'line');
+            baseline.setAttribute('x1', '0');
+            baseline.setAttribute('x2', String(width));
+            baseline.setAttribute('y1', zeroY.toFixed(2));
+            baseline.setAttribute('y2', zeroY.toFixed(2));
+            baseline.setAttribute('class', 'kpi-trend-baseline');
+            svg.append(baseline);
+        }
+
+        const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x.toFixed(2)},${c.y.toFixed(2)}`).join(' ');
+        const areaPath = `${linePath} L${width.toFixed(2)},${height} L0,${height} Z`;
+
+        const area = document.createElementNS(svg.namespaceURI, 'path');
+        area.setAttribute('d', areaPath);
+        area.setAttribute('class', 'kpi-trend-area');
+        svg.append(area);
+
+        const line = document.createElementNS(svg.namespaceURI, 'path');
+        line.setAttribute('d', linePath);
+        line.setAttribute('class', 'kpi-trend-line');
+        svg.append(line);
+
+        coords.forEach((c, i) => {
+            const isEnd = i === coords.length - 1;
+            const dot = document.createElementNS(svg.namespaceURI, 'circle');
+            dot.setAttribute('cx', c.x.toFixed(2));
+            dot.setAttribute('cy', c.y.toFixed(2));
+            dot.setAttribute('r', isEnd ? '2.6' : '1.8');
+            dot.setAttribute('class', 'kpi-trend-dot');
+            dot.setAttribute('tabindex', '0');
+            dot.setAttribute('aria-label', `${c.year}: ${c.raw}`);
+            dot.addEventListener('mouseenter', () => showTooltip(dot, c.year, c.raw));
+            dot.addEventListener('mouseleave', hideTooltip);
+            dot.addEventListener('focus', () => showTooltip(dot, c.year, c.raw));
+            dot.addEventListener('blur', hideTooltip);
+            svg.append(dot);
+        });
+
+        container.append(svg);
+
+        const ticks = document.createElement('div');
+        ticks.className = 'kpi-trend-ticks';
+        [points[0], points[points.length - 1]].forEach(p => {
+            const tick = document.createElement('span');
+            tick.textContent = p.year;
+            ticks.append(tick);
+        });
+        container.append(ticks);
+    }
+
+    function initTrendCharts() {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'kpi-trend-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.hidden = true;
+        document.body.append(tooltip);
+
+        const showTooltip = (target, year, raw) => {
+            const rect = target.getBoundingClientRect();
+            tooltip.textContent = `${year}: ${raw}`;
+            tooltip.style.left = `${rect.left + rect.width / 2}px`;
+            tooltip.style.top = `${rect.top - 8}px`;
+            tooltip.hidden = false;
+        };
+        const hideTooltip = () => { tooltip.hidden = true; };
+
+        document.querySelectorAll('.kpi-trend-chart').forEach(container => {
+            const data = companyData[container.dataset.company];
+            if (!data) return;
+            renderTrendChart(container, data.years, data.series[container.dataset.field], showTooltip, hideTooltip);
         });
     }
 
@@ -359,7 +504,7 @@
             icon.innerHTML = variant.icon;
 
             const label = document.createElement('div');
-            label.textContent = text;   // LLM output: never inject as HTML
+            renderSafeMarkdown(label, text, { inline: true });
 
             item.append(icon, label);
             container.append(item);
@@ -371,16 +516,16 @@
         if (!data) return;
 
         document.getElementById('inspectorCompanyName').textContent = companyName;
-        document.getElementById('inspectorYear').textContent = `Fiscal Year ${data.year}`;
+        document.getElementById('inspectorYear').textContent = `Fiscal Year ${data.latest.year}`;
 
-        renderQualList(document.getElementById('growthDriversList'), data.growth_drivers, {
+        renderQualList(document.getElementById('growthDriversList'), data.latest.growth_drivers, {
             icon: ICONS.check,
             iconClass: 'driver-item-icon',
             emptyIcon: ICONS.bulb,
             emptyText: 'No growth drivers parsed for this report.',
         });
 
-        renderQualList(document.getElementById('riskFactorsList'), data.risk_factors, {
+        renderQualList(document.getElementById('riskFactorsList'), data.latest.risk_factors, {
             icon: ICONS.alert,
             iconClass: 'risk-item-icon',
             emptyIcon: ICONS.shield,
@@ -561,9 +706,16 @@
 
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${role}-bubble`;
-        const p = document.createElement('p');
-        p.textContent = text;
-        bubble.append(p);
+
+        if (role === 'bot') {
+            const content = document.createElement('div');
+            renderSafeMarkdown(content, text);
+            bubble.append(content);
+        } else {
+            const p = document.createElement('p');
+            p.textContent = text;   // user's own typed text; never interpreted as markdown
+            bubble.append(p);
+        }
 
         msg.append(makeAvatar(role), bubble);
         document.getElementById('chatMessages').append(msg);
@@ -601,7 +753,7 @@
         const payload = { question };
         if (selectedCompany) {
             payload.company = selectedCompany;
-            const year = parseInt(companyData[selectedCompany]?.year, 10);
+            const year = parseInt(companyData[selectedCompany]?.latest?.year, 10);
             if (year) payload.year = year;
         }
 
@@ -662,6 +814,42 @@
         document.getElementById('chatCollapsedTab').addEventListener('click', toggleChatPanel);
     }
 
+    // ---------- Theme toggle ----------
+    const THEME_ICONS = {
+        moon: '<path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>',
+        sun: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>',
+    };
+
+    function applyThemeToggleState(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const icon = document.getElementById('themeToggleIcon');
+        const meta = document.getElementById('themeColorMeta');
+        if (!btn || !icon) return;
+
+        const isLight = theme === 'light';
+        icon.innerHTML = isLight ? THEME_ICONS.sun : THEME_ICONS.moon;
+        btn.setAttribute('aria-checked', String(isLight));
+        const label = isLight ? 'Switch to dark theme' : 'Switch to light theme';
+        btn.setAttribute('aria-label', label);
+        btn.title = label;
+        if (meta) meta.setAttribute('content', isLight ? '#f5f7fb' : '#0b0f19');
+    }
+
+    function initThemeToggle() {
+        const btn = document.getElementById('themeToggleBtn');
+        if (!btn) return;
+
+        applyThemeToggleState(document.documentElement.getAttribute('data-theme') || 'dark');
+
+        btn.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('theme', next); } catch (e) { /* persistence unavailable */ }
+            applyThemeToggleState(next);
+        });
+    }
+
     // ---------- Small interactions ----------
     function initActionButtons() {
         document.querySelectorAll('[data-toast-title]').forEach(el => {
@@ -682,7 +870,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initKpiBars();
+        initThemeToggle();
+        initTrendCharts();
         initInspector();
         initUpload();
         initChat();
