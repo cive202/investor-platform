@@ -2,23 +2,23 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  name: cive-investor
+  name: investingAssistant
 
-specs:
+spec:
   replicas: 1
 
   selector:
-    matchLables:
-      app: cive-investor
+    matchLabels:
+      app: investingAssistant
 
   template:
     metadata:
       labels:
-        app: cive-investor
+        app: investingAssistant
 
     spec:
       containers:
-      - name: cive-investor
+      - name: investingAssistant
 
         image: investingassistant.azurecr.io/investor-platform:v1
 
