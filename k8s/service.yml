@@ -2,11 +2,11 @@ apiVersion: v1
 kind: Service
 
 metadata:
-  name: investingAssistant
+  name: investing-assistant
 
 spec:
   selector:
-    app: investingAssistant
+    app: investing-assistant
 
   type: LoadBalancer
 
