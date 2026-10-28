@@ -1,63 +1,90 @@
-name: Build and Deploy AKS
+name: Build and Deploy Investor Platform to AKS
 
 on:
   push:
     branches:
-      - cicd
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ACR_NAME: investingAssistant
+  AKS_RESOURCE_GROUP: rg-utsav10paneru
+  AKS_CLUSTER_NAME: investingassistance
+  IMAGE_NAME: investor-platform
 
 jobs:
-
   build-and-deploy:
-
     runs-on: ubuntu-latest
-    
 
     steps:
-
-      -name: Checkout Repository
+      # 1. Download your repository code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      -name: Azure Login
+      # 2. Log in to Azure
+      - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      -name: Login to ACR
+      # 3. Get the Azure Container Registry login server
+      - name: Get ACR login server
+        id: acr
+        shell: bash
         run: |
-          az cr login --name ${{ secrets.ACR_NAME }}
+          LOGIN_SERVER=$(az acr show \
+            --name "$ACR_NAME" \
+            --query loginServer \
+            --output tsv)
 
+          echo "login-server=$LOGIN_SERVER" >> "$GITHUB_OUTPUT"
 
-      -name: Docker Login to ACR
+      # 4. Log in to Azure Container Registry
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      # 5. Build the Docker image
+      - name: Build Docker image
         run: |
-          docker login ${{ secrets.ACR_LOGIN_SERVER }} \
-            -u ${{ secrets.ACR_USERNAME}} \
-            -p ${{ secrets.ACR_PASSWORD}}
-      
-      -name: Build Docker Image
-        run:
           docker build \
-          -t ${{ secrets.ACR_LOGIN_SERVER}}/investor-platform:v1 .
+            -t "${{ steps.acr.outputs.login-server }}/$IMAGE_NAME:${GITHUB_SHA}" \
+            -t "${{ steps.acr.outputs.login-server }}/$IMAGE_NAME:latest" \
+            .
 
-      -name: Push Docker Image
+      # 6. Push both image tags to ACR
+      - name: Push Docker image to ACR
         run: |
-          docker push \
-            ${{ secrets.ACR_LOGIN_SERVER}}/investor-platform:v1
+          docker push "${{ steps.acr.outputs.login-server }}/$IMAGE_NAME:${GITHUB_SHA}"
+          docker push "${{ steps.acr.outputs.login-server }}/$IMAGE_NAME:latest"
 
-      -name: GET AKS CREDENTIALS
+      # 7. Connect to Azure Kubernetes Service
+      - name: Get AKS credentials
         run: |
           az aks get-credentials \
-            --resource-group ${{ secrets.AKS_RESOURCE_GROUP}} \
-            --name ${{ secrets.AKS_CLUSTER_NAME}} \
+            --resource-group "$AKS_RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER_NAME" \
             --overwrite-existing
-      -name: Deploy Application
-        run: |
-          kubectl apply -f k8s/deployment.yml
-          kubectl apply -f k8s/service.yml
-      
-      -name: Restart deployment
-        run: |
-          kubectl rollout restart deployment/investingAssistant
 
-      -name: Verfiy deployment
+      # 8. Update the image used by your Kubernetes Deployment
+      - name: Deploy to AKS
+        env:
+          ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login-server }}
+          K8S_DEPLOYMENT: investor-platform
+          K8S_CONTAINER: investor-platform
         run: |
-          kubectl rollout status deployment/investingAssistant
+          kubectl set image \
+            "deployment/$K8S_DEPLOYMENT" \
+            "$K8S_CONTAINER=$ACR_LOGIN_SERVER/$IMAGE_NAME:$GITHUB_SHA"
+
+      # 9. Wait for the deployment to finish
+      - name: Verify deployment
+        run: |
+          kubectl rollout status \
+            "deployment/investor-platform" \
+            --timeout=180s
+
+          kubectl get pods
+          kubectl get services
