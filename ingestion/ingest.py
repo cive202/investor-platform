@@ -2,7 +2,7 @@ import os
 from pathlib import Path 
 from dotenv import load_dotenv 
 from langchain_experimental.text_splitter import SemanticChunker 
-from langchain_openai import AzureOpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from vectorstore.azure_ai_search import AzureAISearchVectorStore
 from ingestion.pdf_to_markdown import PDFtoMarkdown
@@ -81,7 +81,7 @@ def ingest_document(
     )
 
 
-def build_clients() -> tuple[AzureOpenAIEmbeddings, AzureAISearchVectorStore]:
+def build_clients() -> tuple[OpenAIEmbeddings, AzureAISearchVectorStore]:
     """Read settings from the environment and build the embeddings and vector store."""
 
     load_dotenv(override=True)
@@ -127,13 +127,11 @@ def build_clients() -> tuple[AzureOpenAIEmbeddings, AzureAISearchVectorStore]:
             f"Missing environment variables: {', '.join(missing)}"
         )
 
-    # 1. Initialize Azure OpenAI embeddings
+    # 1. Initialize Azure OpenAI embeddings (via the OpenAI-compatible v1 endpoint)
 
-    embeddings = AzureOpenAIEmbeddings(
+    embeddings = OpenAIEmbeddings(
         model=embedding_model_name,
-        azure_deployment=embedding_model_name,
-        azure_endpoint=embedding_endpoint,
-        api_version=os.getenv("OPENAI_API_VERSION"),
+        base_url=embedding_endpoint,
         api_key=embedding_api_key,
         check_embedding_ctx_length=False,
     )

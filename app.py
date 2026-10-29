@@ -24,7 +24,9 @@ def startup_event():
     """
     Initialize database and vector index on app startup.
     """
+    print("Creating database....")
     create_database()
+    print("Creating table....")
     create_tables()
     
     try:

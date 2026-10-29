@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: investing-assistant
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: investing-assistant
+
+  template:
+    metadata:
+      labels:
+        app: investing-assistant
+
+    spec:
+      containers:
+      - name: investing-assistant
+
+        image: investingassistant.azurecr.io/investor-platform:v1
+
+        imagePullPolicy: Always
+
+        envFrom:
+        - secretRef:
+            name: investor-env
+
+        ports:
+        - containerPort: 8000

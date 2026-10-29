@@ -1,0 +1,21 @@
+# Version control and editor files
+.git
+.gitignore
+.vscode
+.idea
+
+# Local virtualenv and caches (the image builds its own .venv)
+.venv
+**/__pycache__
+**/*.pyc
+
+# Secrets: never copy .env into the image. Pass it at runtime instead.
+.env
+.env.*
+
+# Things the running app does not need
+k8s
+.github
+test
+*.md
+*.jpg

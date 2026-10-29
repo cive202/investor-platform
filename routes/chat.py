@@ -38,7 +38,7 @@ async def chat(request: ChatRequest):
         context = "\n\n".join(doc.page_content for doc in docs)
 
         # Build chat prompt – include retrieved context and the user question
-        prompt = f"You are an expert financial analyst. Use the following context from corporate reports to answer the user's question. If the context does not contain relevant information, politely indicate that you do not have enough data.\n\nContext:\n{context}\n\nUser Question: {request.question}\n\nAnswer:"
+        prompt = f"You are an expert financial analyst. Use the following context from corporate reports to answer the user's question. If the context does not contain relevant information, politely indicate that you do not have enough data. Format your answer using Markdown (e.g. **bold** for emphasis, bullet lists for multiple items) to improve readability.\n\nContext:\n{context}\n\nUser Question: {request.question}\n\nAnswer:"
 
         client = get_openai_client()
         response = client.chat.completions.create(

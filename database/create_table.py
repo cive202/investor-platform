@@ -1,7 +1,6 @@
 from sqlalchemy import text
 from database.postgres_sql import get_engine
-
-
+from database.postgres_sql import create_database
 def create_tables() -> None:
     engine = get_engine()
 
@@ -28,6 +27,6 @@ def create_tables() -> None:
     print("financial_metrics table created.")
 
 
-if __name__ == "__main__":
-#    create_database()
+if __name__ == "__main__":  
+    create_database()
     create_tables()
