@@ -1,12 +1,10 @@
 FROM python:3.13-slim
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y             
---no-install-recommends \                            
-  tesseract-ocr-eng \                              
-  && rm -rf /var/lib/apt/lists/*                   
-
+RUN apt-get update && apt-get install -y \
+  --no-install-recommends \
+  tesseract-ocr-eng \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN ln -sfn "$(dirname "$(find /usr/share/tesseract-ocr -name eng.traineddata | head -n1)")" /usr/share/tessdata \
     && test -f /usr/share/tessdata/eng.traineddata
