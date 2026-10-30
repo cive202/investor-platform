@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 import os
 from dotenv import load_dotenv
 
@@ -75,6 +77,26 @@ def health():
     return {
         "status": "healthy"
     }
+
+
+FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
+
+if FRONTEND_DIST.is_dir():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_DIST / "assets"),
+        name="assets"
+    )
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def frontend(path: str):
+        """
+        Serve the built React app, falling back to index.html.
+        """
+        file = (FRONTEND_DIST / path).resolve()
+        if file.is_file() and FRONTEND_DIST in file.parents:
+            return FileResponse(file)
+        return FileResponse(FRONTEND_DIST / "index.html")
 
 
 if __name__ == "__main__":

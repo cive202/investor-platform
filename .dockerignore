@@ -19,3 +19,7 @@ k8s
 test
 *.md
 *.jpg
+
+# Frontend is built in its own stage
+frontend/node_modules
+frontend/dist

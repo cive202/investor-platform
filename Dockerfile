@@ -1,3 +1,12 @@
+# Build the React frontend; FastAPI serves the output from frontend/dist.
+FROM node:22-slim AS frontend
+WORKDIR /frontend
+RUN corepack enable
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ .
+RUN pnpm build
+
 FROM python:3.13-slim
 
 WORKDIR /app
@@ -21,6 +30,7 @@ RUN uv pip install --system --no-cache -r requirements.txt
 RUN python -c "import pymupdf; p = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 64, 64), 0); p.clear_with(255); p.pdfocr_tobytes(language='eng')"
 
 COPY . .
+COPY --from=frontend /frontend/dist ./frontend/dist
 
 EXPOSE 8000
 
