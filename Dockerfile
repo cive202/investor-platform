@@ -1,5 +1,3 @@
-FROM python:3.13-slim
-
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,7 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
-ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+# Let Tesseract use its default language-data directory.
+# Do not set TESSDATA_PREFIX unless you have verified the path.
 
 RUN pip install --no-cache-dir uv
 
