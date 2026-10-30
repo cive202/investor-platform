@@ -9,13 +9,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
-ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+# MuPDF embeds its own Tesseract and needs to find the language data. Link the
+# distro's tessdata dir (path contains the Tesseract major version) to a stable
+# location so a base-image upgrade can't silently break OCR.
+RUN ln -sfn "$(dirname "$(find /usr/share/tesseract-ocr -name eng.traineddata | head -n1)")" /usr/share/tessdata \
+    && test -f /usr/share/tessdata/eng.traineddata
+
+ENV TESSDATA_PREFIX=/usr/share/tessdata
 
 RUN pip install --no-cache-dir uv
 
 COPY requirements.txt .
 
 RUN uv pip install --system --no-cache -r requirements.txt
+
+# Fail the build (not the first upload) if MuPDF's OCR can't initialise.
+RUN python -c "import pymupdf; p = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 64, 64), 0); p.clear_with(255); p.pdfocr_tobytes(language='eng')"
 
 COPY . .
 

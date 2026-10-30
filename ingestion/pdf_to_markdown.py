@@ -1,3 +1,4 @@
+import pymupdf
 import pymupdf4llm
 from pathlib import Path
 
@@ -17,7 +18,13 @@ class PDFtoMarkdown:
         print(f"Converting: {pdf_path}")
 
         # Convert PDF to Markdown
-        markdown = pymupdf4llm.to_markdown(str(pdf_path))
+        try:
+            markdown = pymupdf4llm.to_markdown(str(pdf_path))
+        except pymupdf.mupdf.FzErrorBase as e:
+            # OCR engine failures (e.g. missing Tesseract language data) shouldn't
+            # sink the whole ingestion; fall back to the embedded text layer.
+            print(f"OCR failed for {pdf_path} ({e}); retrying without OCR")
+            markdown = pymupdf4llm.to_markdown(str(pdf_path), use_ocr=False)
 
         if self.save:
             md_path = self._output_path(pdf_path, Path(input_dir) if input_dir else pdf_path.parent)
