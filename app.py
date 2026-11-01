@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from pathlib import Path
 import os
 from dotenv import load_dotenv
 
@@ -12,10 +13,23 @@ from vectorstore.create_index import create_index
 from routes.ingestion import router as ingestion_router
 from routes.chat import router as chat_router
 
+
+
 load_dotenv()
 
 app = FastAPI(
     title="AI-Powered Investor Intelligence Platform"
+)
+
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:8443,http://127.0.0.1:8443,"
+    "http://localhost:5173,http://127.0.0.1:5173"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -50,43 +64,12 @@ app.include_router(
     tags=["Chat"]
 )
 
-app.mount(
-    "/static",
-    StaticFiles(directory="static"),
-    name="static"
-)
-
-templates = Jinja2Templates(
-    directory="templates"
-)
-
-
-@app.get("/")
-def dashboard(request: Request):
-    """
-    Render dashboard UI.
-    """
-    metrics = get_metrics()
-
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard.html",
-        context={
-            "metrics": metrics,
-            "total_companies": len(metrics),
-            "total_reports": len(metrics)
-        }
-    )
-
-
 @app.get("/api/metrics")
 def metrics():
     """
     Return KPI metrics.
     """
-    return JSONResponse(
-        content=get_metrics()
-    )
+    return get_metrics()
 
 
 @app.get("/health")
@@ -94,6 +77,26 @@ def health():
     return {
         "status": "healthy"
     }
+
+
+FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
+
+if FRONTEND_DIST.is_dir():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_DIST / "assets"),
+        name="assets"
+    )
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def frontend(path: str):
+        """
+        Serve the built React app, falling back to index.html.
+        """
+        file = (FRONTEND_DIST / path).resolve()
+        if file.is_file() and FRONTEND_DIST in file.parents:
+            return FileResponse(file)
+        return FileResponse(FRONTEND_DIST / "index.html")
 
 
 if __name__ == "__main__":
