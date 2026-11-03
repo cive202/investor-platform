@@ -1,3 +1,6 @@
+## the server will be down at Nov 19 
+(Azure subscription is too expensive)
+
 # Investor Platform
 
 ## Logical Design
