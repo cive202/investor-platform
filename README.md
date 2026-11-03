@@ -11,7 +11,11 @@
 
 ![Physical Design](./physical_desgin.jpg)
 
+## Website desgin
+![landing page](./screenshots-demo/landing_page.png)
 
+## Comapny design 
+![company report](./screenshots-demo/company_report.png)
 ## AI-Powered Investor Intelligence Platform
 
 A production-grade, cloud-native Retrieval-Augmented Generation (RAG) platform for financial analysis. It ingests company financial reports (PDFs, with OCR via Tesseract), converts them to markdown, semantically chunks the content, and embeds it into Azure AI Search for retrieval. Azure OpenAI powers both KPI extraction (structured metrics persisted to PostgreSQL) and a RAG-based chat interface for natural-language Q&A over ingested reports, surfaced through a FastAPI backend with a metrics dashboard UI.
