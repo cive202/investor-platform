@@ -7,11 +7,11 @@
 
 ![Logical Design](./logical_desgin.jpg)
 
-## Physical Design
+## Physical design
 
 ![Physical Design](./physical_desgin.jpg)
 
-## Website desgin
+## Website design
 ![landing page](./screenshots-demo/landing_page.png)
 
 ## Comapny design 
